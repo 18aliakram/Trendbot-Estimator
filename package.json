@@ -1,0 +1,23 @@
+{
+  "name": "buildestimate-ai",
+  "version": "1.0.0",
+  "description": "AI-Assisted Construction Estimating and Quantity-Takeoff Platform",
+  "main": "server/server.js",
+  "scripts": {
+    "install:all": "npm install && npm run install:server && npm run install:client",
+    "install:server": "cd server && npm install",
+    "install:client": "cd client && npm install",
+    "server": "node server/server.js",
+    "client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "start": "node server/server.js",
+    "build": "cd client && npm run build",
+    "test": "node scripts/test-estimating-engine.js"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
