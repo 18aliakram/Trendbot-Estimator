@@ -2,3 +2,19 @@
   base = "client"
   command = "npm run build"
   publish = "dist"
+
+[functions]
+  directory = "../netlify/functions"
+  external_node_modules = ["express", "serverless-http", "@netlify/blobs", "pdfkit"]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  force = true
+  from = "/api/*"
+  status = 200
+  to = "/.netlify/functions/api/:splat"
+
+[[redirects]]
+  from = "/*"
+  status = 200
+  to = "/index.html"

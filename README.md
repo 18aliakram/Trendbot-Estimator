@@ -113,11 +113,31 @@ Every manual quantity override, margin adjustment, price change, and estimate ap
 
 ---
 
-## 🌐 Netlify Deployment
-To deploy this project to Netlify:
-1. Build the Vite React application:
-   ```bash
-   cd client && npm run build
-   ```
-2. The compiled assets will be stored in `client/dist`.
-3. Create serverless API routes using Netlify Functions mapping from the `server/` directory, or link the repository to host on Heroku, Render, or a VPS.
+## 🌐 Netlify Serverless Deployment
+
+This project is fully structured to build and deploy both the **React Frontend** and the **Serverless Express API** on Netlify's Free plan under a single unified project dashboard.
+
+### 1. Build and Redirect Architecture
+- **Vite React Frontend**: Statically compiled and published to `client/dist`.
+- **Serverless API**: Configured inside `netlify/functions/api.js` wrapping the Express logic using `serverless-http`.
+- **API Rewrites**: Integrated inside `netlify.toml` which intercepts requests to `/api/*` and redirects them to the serverless function, while routing all other requests to `index.html` (SPA fallback).
+
+### 2. Persistent Data Storage (Netlify Blobs)
+Because Netlify Functions run in a read-only ephemeral environment, the database state `db.json` is persisted using **Netlify Blobs** (via `@netlify/blobs`).
+- The database is dynamically loaded from Blobs on incoming requests and persisted back to Netlify Blobs upon response send (`res.send` interceptor).
+- Uploaded blueprints are processed temporarily inside the serverless `/tmp` directory and immediately deleted after Gemini takeoff calculations are complete.
+
+### 3. Netlify Environment Variables
+Configure the following Environment Variables in your Netlify dashboard:
+- `GEMINI_API_KEY`: Google AI Studio Gemini API key. *(If missing, the backend runs in simulated takeoff mode)*.
+- `JWT_SECRET`: A secure key used for signing JWT login tokens.
+- `NODE_ENV`: Set to `production`.
+
+### 4. Verification and Health Testing
+Once deployed:
+- **API Health Endpoint**: Test that the serverless API functions properly by navigating to `https://your-domain.netlify.app/api/health`. It should return:
+  ```json
+  { "ok": true, "environment": "netlify" }
+  ```
+- **Login Verification**: Navigate to `https://your-domain.netlify.app/` and log in with your credentials. The POST request to `/api/auth/login` will resolve to the Netlify Function.
+

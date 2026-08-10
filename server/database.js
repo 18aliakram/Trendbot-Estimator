@@ -1,7 +1,19 @@
 const fs = require('fs');
 const path = require('path');
 
+// Try loading @netlify/blobs if available, but fallback gracefully for local dev
+let getStore;
+try {
+  getStore = require('@netlify/blobs').getStore;
+} catch (e) {
+  getStore = null;
+}
+
 const DB_PATH = path.join(__dirname, 'db.json');
+
+const isNetlify = () => {
+  return !!process.env.NETLIFY || !!process.env.CONTEXT || !!process.env.NETLIFY_IMAGES_CDN_DOMAIN;
+};
 
 class JsonDatabase {
   constructor() {
@@ -46,6 +58,44 @@ class JsonDatabase {
       fs.writeFileSync(DB_PATH, JSON.stringify(this.data, null, 2), 'utf8');
     } catch (error) {
       console.error('Error writing to JSON database:', error);
+    }
+  }
+
+  // Netlify Blobs Asynchronous Support
+  async load() {
+    if (isNetlify() && getStore) {
+      try {
+        console.log('Loading database from Netlify Blobs...');
+        const store = getStore('database');
+        const content = await store.get('db.json', { type: 'json' });
+        if (content) {
+          this.data = { ...this.data, ...content };
+          console.log('Database loaded successfully from Netlify Blobs');
+        } else {
+          console.log('Netlify Blobs db.json not found, using default state');
+        }
+      } catch (err) {
+        console.error('Error loading database from Netlify Blobs:', err);
+      }
+    } else {
+      // Local file fallback
+      this.init();
+    }
+  }
+
+  async persist() {
+    if (isNetlify() && getStore) {
+      try {
+        console.log('Saving database to Netlify Blobs...');
+        const store = getStore('database');
+        await store.setJSON('db.json', this.data);
+        console.log('Database saved successfully to Netlify Blobs');
+      } catch (err) {
+        console.error('Error saving database to Netlify Blobs:', err);
+      }
+    } else {
+      // Local file save
+      this.save();
     }
   }
 
