@@ -1,11 +1,10 @@
 [build]
-  base = "client"
+  base = "."
   command = "npm run build"
-  publish = "dist"
+  publish = "client/dist"
 
 [functions]
-  directory = "../netlify/functions"
-  external_node_modules = ["express", "serverless-http", "@netlify/blobs", "pdfkit"]
+  directory = "netlify/functions"
   node_bundler = "esbuild"
 
 [[redirects]]
