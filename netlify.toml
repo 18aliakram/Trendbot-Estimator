@@ -5,6 +5,7 @@
 
 [functions]
   directory = "netlify/functions"
+  external_node_modules = ["express", "serverless-http", "@netlify/blobs", "pdfkit", "bcryptjs", "@google/generative-ai", "cors", "jsonwebtoken", "multer", "dotenv"]
   node_bundler = "esbuild"
 
 [[redirects]]
