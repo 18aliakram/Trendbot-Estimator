@@ -17,6 +17,7 @@ const isNetlify = () => {
 
 class JsonDatabase {
   constructor() {
+    this.isDirty = false;
     this.data = {
       users: [],
       projects: [],
@@ -84,11 +85,15 @@ class JsonDatabase {
   }
 
   async persist() {
+    if (!this.isDirty) {
+      return; // Do not call Netlify Blobs write if data was not modified during request
+    }
     if (isNetlify() && getStore) {
       try {
-        console.log('Saving database to Netlify Blobs...');
+        console.log('Saving database to Netlify Blobs (dirty state detected)...');
         const store = getStore('database');
         await store.setJSON('db.json', this.data);
+        this.isDirty = false;
         console.log('Database saved successfully to Netlify Blobs');
       } catch (err) {
         console.error('Error saving database to Netlify Blobs:', err);
@@ -96,6 +101,7 @@ class JsonDatabase {
     } else {
       // Local file save
       this.save();
+      this.isDirty = false;
     }
   }
 
@@ -131,6 +137,7 @@ class JsonDatabase {
       ...doc
     };
     list.push(newDoc);
+    this.isDirty = true;
     this.save();
     return newDoc;
   }
@@ -147,6 +154,7 @@ class JsonDatabase {
       updatedAt: new Date().toISOString()
     };
     list[index] = newDoc;
+    this.isDirty = true;
     this.save();
     return newDoc;
   }
@@ -157,6 +165,7 @@ class JsonDatabase {
     if (index === -1) return false;
 
     list.splice(index, 1);
+    this.isDirty = true;
     this.save();
     return true;
   }
