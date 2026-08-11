@@ -12,7 +12,7 @@ try {
 const DB_PATH = path.join(__dirname, 'db.json');
 
 const isNetlify = () => {
-  return !!process.env.NETLIFY || !!process.env.CONTEXT || !!process.env.NETLIFY_IMAGES_CDN_DOMAIN;
+  return !!process.env.NETLIFY || !!process.env.LAMBDA_TASK_ROOT || !!process.env.CONTEXT || !!process.env.NETLIFY_IMAGES_CDN_DOMAIN;
 };
 
 class JsonDatabase {

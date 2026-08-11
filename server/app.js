@@ -16,7 +16,7 @@ const app = express();
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_buildestimate_token_key_12345';
 
 const isNetlify = () => {
-  return !!process.env.NETLIFY || !!process.env.CONTEXT || !!process.env.NETLIFY_IMAGES_CDN_DOMAIN;
+  return !!process.env.NETLIFY || !!process.env.LAMBDA_TASK_ROOT || !!process.env.CONTEXT || !!process.env.NETLIFY_IMAGES_CDN_DOMAIN;
 };
 
 // Database Loading and Seeding Middleware for Serverless / Local Environment
@@ -66,9 +66,19 @@ app.use(express.json());
 app.use(databaseMiddleware);
 
 // Multer Upload configuration (Uses ephemeral /tmp on serverless Netlify Functions)
-const uploadDir = isNetlify() ? '/tmp' : path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir) && uploadDir !== '/tmp') {
-  fs.mkdirSync(uploadDir, { recursive: true });
+let uploadDir;
+try {
+  if (isNetlify()) {
+    uploadDir = '/tmp';
+  } else {
+    uploadDir = path.join(__dirname, 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+  }
+} catch (e) {
+  console.warn('Failed to create local uploads directory, falling back to /tmp:', e);
+  uploadDir = '/tmp';
 }
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
