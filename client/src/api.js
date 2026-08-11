@@ -110,10 +110,16 @@ export const api = {
   },
 
 
-  // Upload plans
-  async uploadPlans(projectId, file) {
+  // Upload plans with specifications metadata
+  async uploadPlans(projectId, file, metadata) {
     const formData = new FormData();
     formData.append('plan', file);
+    if (metadata) {
+      formData.append('bedrooms', metadata.bedrooms || '');
+      formData.append('bathrooms', metadata.bathrooms || '');
+      formData.append('notes', metadata.notes || '');
+      formData.append('qualityStandard', metadata.qualityStandard || 'Standard');
+    }
 
     const token = localStorage.getItem('token');
     

@@ -373,10 +373,17 @@ app.post('/api/projects/:id/upload', authenticateToken, upload.single('plan'), a
   try {
     const user = db.findById('users', req.user.id);
     
-    // Call AI Service
+    // Call AI Service with the plan drawings and specifications metadata
     const result = await aiService.analyzeDocument(
       req.file.path, 
-      { name: project.name, type: project.type },
+      { 
+        name: project.name, 
+        type: project.type,
+        bedrooms: req.body.bedrooms,
+        bathrooms: req.body.bathrooms,
+        notes: req.body.notes,
+        qualityStandard: req.body.qualityStandard
+      },
       (stage) => {
         console.log(`[AI Status Project ${project.id}]: ${stage}`);
       }

@@ -7,7 +7,8 @@ const hasApiKey = () => {
 };
 
 // Seed-based simulator to generate realistic plans based on project metadata
-function generateSimulatedTakeoff(projectType, projectName) {
+function generateSimulatedTakeoff(projectMetadata) {
+  const { type: projectType, name: projectName, bedrooms, bathrooms, notes, qualityStandard } = projectMetadata;
   const normalizedType = (projectType || 'ADU').toLowerCase();
   
   // Default ADU quantities
@@ -21,14 +22,14 @@ function generateSimulatedTakeoff(projectType, projectName) {
     { name: 'R-15 Fiberglass Batt Insulation (Walls)', category: 'Insulation', quantity: 1100, unit: 'SF', sheet: 'A-103', confidence: 0.94, notes: 'Exterior walls R-value requirement' },
     { name: 'R-30 Fiberglass Batt Insulation (Ceilings)', category: 'Insulation', quantity: 600, unit: 'SF', sheet: 'A-103', confidence: 0.94, notes: 'Ceiling/roof R-value requirement' },
     { name: '30-Year Architectural Asphalt Shingles', category: 'Roofing', quantity: 720, unit: 'SF', sheet: 'A-104', confidence: 0.89, notes: 'Main roof deck including waste factor' },
-    { name: 'Luxury Vinyl Plank (LVP) Flooring', category: 'Flooring', quantity: 520, unit: 'SF', sheet: 'A-103', confidence: 0.97, notes: 'Main living areas and bedroom' },
+    { name: 'Luxury Vinyl Plank (LVP) Flooring', category: 'Flooring', quantity: 520, unit: 'SF', sheet: 'A-103', confidence: 0.97, notes: 'Main living areas and bedrooms' },
     { name: 'Premium Interior Latex Paint (Flat/Eggshell)', category: 'Painting', quantity: 12, unit: 'GAL', sheet: 'A-103', confidence: 0.90, notes: 'Two-coat paint for walls and ceilings' },
     { name: 'Standard Pre-hung Interior Door (Molded Wood)', category: 'Doors & Windows', quantity: 4, unit: 'EA', sheet: 'A-105', confidence: 0.98, notes: 'Bedrooms, bathroom, and closets' },
     { name: 'Double-Hung Vinyl Window (3ft x 5ft)', category: 'Doors & Windows', quantity: 6, unit: 'EA', sheet: 'A-105', confidence: 0.97, notes: 'Living and bedroom window openings' },
     { name: 'Shaker Style Kitchen Wall Cabinet (30"x30")', category: 'Cabinets', quantity: 8, unit: 'EA', sheet: 'A-106', confidence: 0.95, notes: 'Standard kitchen layout upper/lower' },
     { name: 'Quartz Countertop Slab (Prefab)', category: 'Cabinets', quantity: 45, unit: 'SF', sheet: 'A-106', confidence: 0.91, notes: 'Kitchen island and sink countertops' },
     { name: 'Standard Recessed LED Can Light', category: 'Electrical', quantity: 14, unit: 'EA', sheet: 'E-101', confidence: 0.96, notes: 'Recessed lighting locations' },
-    { name: 'Standard Undermount Kitchen Sink', category: 'Plumbing', type: 'Material', quantity: 1, unit: 'EA', sheet: 'P-101', confidence: 0.99, notes: 'Under-mount kitchen fixture' },
+    { name: 'Standard Undermount Kitchen Sink', category: 'Plumbing', quantity: 1, unit: 'EA', sheet: 'P-101', confidence: 0.99, notes: 'Under-mount kitchen fixture' },
     { name: 'Single-Zone Mini-Split Heat Pump (12k BTU)', category: 'HVAC', quantity: 1, unit: 'EA', sheet: 'M-101', confidence: 0.98, notes: 'Primary heating and cooling zone' }
   ];
 
@@ -41,6 +42,39 @@ function generateSimulatedTakeoff(projectType, projectName) {
     'Concrete slab thickness is not explicitly noted in structural notes. Assumed 4 inches.',
     'Electrical panel location is not marked on E-101. Verify main panel capacity and feed run.'
   ];
+
+  // Adjust details based on bedrooms/bathrooms/quality specifications
+  if (bedrooms) {
+    const beds = Number(bedrooms);
+    const doorItem = items.find(i => i.name.includes('Interior Door'));
+    if (doorItem) {
+      doorItem.quantity = Math.max(doorItem.quantity, beds + 2);
+      doorItem.notes = `Pre-hung interior doors for ${beds} bedrooms, bath, and closets (contractor specified).`;
+    }
+    const paintItem = items.find(i => i.name.includes('Paint'));
+    if (paintItem) {
+      paintItem.quantity = Math.round(paintItem.quantity * (1 + (beds * 0.15)));
+    }
+  }
+
+  if (bathrooms) {
+    const baths = Number(bathrooms);
+    items.push({
+      name: 'Plumbing Subcontractor Fixture Install',
+      category: 'Plumbing',
+      quantity: baths,
+      unit: 'EA',
+      sheet: 'P-101',
+      confidence: 0.95,
+      notes: `Plumbing fixtures installation for ${baths} bathrooms (contractor specified).`
+    });
+  }
+
+  if (qualityStandard && qualityStandard !== 'Standard') {
+    items.forEach(item => {
+      item.notes += ` [Quality Standard: ${qualityStandard}]`;
+    });
+  }
 
   // Adjust details based on type
   if (normalizedType.includes('remodel') || normalizedType.includes('bathroom') || normalizedType.includes('kitchen')) {
@@ -75,11 +109,11 @@ const AIService = {
   /**
    * Analyze drawing document (PDF) and extract items, quantities, sheets, units, confidence scores, warnings, and missing info.
    * @param {string} filePath - Absolute path to the PDF file.
-   * @param {object} projectMetadata - Contains project details (name, type, location).
+   * @param {object} projectMetadata - Contains project details (name, type, location, bedrooms, bathrooms, notes).
    * @param {function} onProgress - Callback to notify of progress stages.
    */
   async analyzeDocument(filePath, projectMetadata, onProgress = () => {}) {
-    const { name: projectName, type: projectType } = projectMetadata;
+    const { name: projectName, type: projectType, bedrooms, bathrooms, notes, qualityStandard } = projectMetadata;
 
     // Simulate progress updates as required by UI Section 8
     const steps = [
@@ -120,7 +154,7 @@ const AIService = {
           }
         };
 
-        const systemPrompt = `You are a professional construction quantity estimator.
+        let systemPrompt = `You are a professional construction quantity estimator.
 Analyze this construction drawing (PDF) and perform a detailed takeoff.
 Identify:
 1. Architectural elements: floors, rooms, walls, doors, windows, ceilings.
@@ -151,6 +185,18 @@ Return your analysis in STRICT JSON format matching this schema:
   ]
 }`;
 
+        // Append contractor specification constraints to prompt if specified
+        if (bedrooms || bathrooms || notes || qualityStandard) {
+          systemPrompt += `\n\nCONTRACTOR SPECIFICATIONS / PROJECT CONSTRAINTS:
+- Project Type: ${projectType || 'Not specified'}
+- Number of Bedrooms: ${bedrooms || 'Not specified'}
+- Number of Bathrooms: ${bathrooms || 'Not specified'}
+- Target Construction Quality Standard: ${qualityStandard || 'Standard'}
+- Project Description / Scope Details: ${notes || 'Not specified'}
+
+Use these constraints to guide and validate your quantity extractions. For example, check that the count of doors, window openings, bathroom fixtures, LVP flooring areas, etc., correlate logically with the number of bedrooms/bathrooms and quality standards specified.`;
+        }
+
         const response = await model.generateContent([systemPrompt, pdfPart]);
         const responseText = response.response.text();
         const parsedResult = JSON.parse(responseText);
@@ -164,11 +210,11 @@ Return your analysis in STRICT JSON format matching this schema:
       } catch (err) {
         console.error('Error during Gemini API analysis, falling back to simulated takeoff:', err.message);
         // Failover to simulation
-        return generateSimulatedTakeoff(projectType, projectName);
+        return generateSimulatedTakeoff(projectMetadata);
       }
     } else {
       console.log('Gemini API key is not configured, returning simulated plan takeoff.');
-      return generateSimulatedTakeoff(projectType, projectName);
+      return generateSimulatedTakeoff(projectMetadata);
     }
   },
 

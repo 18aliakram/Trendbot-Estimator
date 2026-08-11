@@ -15,6 +15,9 @@ export default function ProjectForm({ onProjectCreated, onCancel }) {
   const [zipCode, setZipCode] = useState('');
   const [type, setType] = useState('ADU');
   const [notes, setNotes] = useState('');
+  const [bedrooms, setBedrooms] = useState('');
+  const [bathrooms, setBathrooms] = useState('');
+  const [qualityStandard, setQualityStandard] = useState('Standard');
 
   // Upload values
   const [projectId, setProjectId] = useState(null);
@@ -36,17 +39,6 @@ export default function ProjectForm({ onProjectCreated, onCancel }) {
     { value: 'Other Residential', label: 'Other Residential' }
   ];
 
-  // Steps of processing for the progress UI (simulated progress on top of api stage alerts)
-  const processingStages = [
-    'Uploading PDF plan file to server...',
-    'Reading architectural sheets...',
-    'Detecting plan dimensions and scales...',
-    'Extracting walls, doors, and flooring dimensions...',
-    'Compiling materials quantity takeoff...',
-    'Linking prices with San Jose builder database...',
-    'Finalizing quantity checklist review...'
-  ];
-
   const handleCreateProject = async (e) => {
     e.preventDefault();
     if (!name || !clientName) {
@@ -65,7 +57,10 @@ export default function ProjectForm({ onProjectCreated, onCancel }) {
         state,
         zipCode,
         type,
-        notes
+        notes,
+        bedrooms,
+        bathrooms,
+        qualityStandard
       };
       const created = await api.createProject(data);
       setProjectId(created.id);
@@ -106,7 +101,7 @@ export default function ProjectForm({ onProjectCreated, onCancel }) {
     setIsUploading(true);
     setError('');
     setUploadProgress(10);
-    setCurrentStage('Uploading drawing sheet PDF...');
+    setCurrentStage('Uploading plan drawings...');
 
     // Simulate progress bar movement along with API stage updates
     let progressTimer = setInterval(() => {
@@ -143,7 +138,7 @@ export default function ProjectForm({ onProjectCreated, onCancel }) {
         }
       }, 2000);
 
-      const res = await api.uploadPlans(projectId, file);
+      const res = await api.uploadPlans(projectId, file, { bedrooms, bathrooms, notes, qualityStandard });
       
       clearInterval(progressTimer);
       clearInterval(stageUpdater);
@@ -178,24 +173,26 @@ export default function ProjectForm({ onProjectCreated, onCancel }) {
             <span style={{
               width: '28px', height: '28px', borderRadius: '50%',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              backgroundColor: step === 1 ? 'var(--primary)' : 'var(--primary-light)',
-              color: step === 1 ? 'white' : 'var(--primary-hover)', fontWeight: 'bold', fontSize: '13px'
-            }}>1</span>
+              backgroundColor: step === 1 ? 'var(--primary)' : 'var(--success)',
+              color: 'white', fontWeight: 'bold', fontSize: '14px'
+            }}>
+              {step === 1 ? '1' : <Check size={14} />}
+            </span>
             <span style={{
               width: '28px', height: '28px', borderRadius: '50%',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               backgroundColor: step === 2 ? 'var(--primary)' : '#e2e8f0',
-              color: step === 2 ? 'white' : 'var(--text-muted)', fontWeight: 'bold', fontSize: '13px'
-            }}>2</span>
+              color: step === 2 ? 'white' : 'var(--text-muted)', fontWeight: 'bold', fontSize: '14px'
+            }}>
+              2
+            </span>
           </div>
         </div>
 
         {error && (
-          <div className="alert alert-danger">
-            <AlertTriangle size={18} />
-            <div>
-              <strong>Error:</strong> {error}
-            </div>
+          <div className="alert alert-danger" style={{ marginBottom: '24px' }}>
+            <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+            <div>{error}</div>
           </div>
         )}
 
@@ -206,7 +203,7 @@ export default function ProjectForm({ onProjectCreated, onCancel }) {
               <input
                 type="text"
                 className="form-control"
-                placeholder="e.g., Willow Street ADU"
+                placeholder="e.g. San Jose ADU Remodel"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -219,18 +216,18 @@ export default function ProjectForm({ onProjectCreated, onCancel }) {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="e.g., Jane Miller"
+                  placeholder="John Doe"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                   required
                 />
               </div>
               <div className="form-group">
-                <label>Client Company (Optional)</label>
+                <label>Client Company</label>
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="e.g., Miller Properties"
+                  placeholder="Optional"
                   value={clientCompany}
                   onChange={(e) => setClientCompany(e.target.value)}
                 />
@@ -238,11 +235,11 @@ export default function ProjectForm({ onProjectCreated, onCancel }) {
             </div>
 
             <div className="form-group">
-              <label>Site Address</label>
+              <label>Project Address</label>
               <input
                 type="text"
                 className="form-control"
-                placeholder="e.g., 456 Willow St"
+                placeholder="123 Main St"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
               />
@@ -279,26 +276,79 @@ export default function ProjectForm({ onProjectCreated, onCancel }) {
               </div>
             </div>
 
-            <div className="form-group">
-              <label>Project Scope / Type</label>
-              <select
-                className="form-control"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-              >
-                {projectTypes.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Project Scope / Type</label>
+                <select
+                  className="form-control"
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                >
+                  {projectTypes.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Bedrooms, Bathrooms, and Finish Quality spec parameters */}
+            <div className="form-row" style={{ marginTop: '8px' }}>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Bedrooms Count</label>
+                <select
+                  className="form-control"
+                  value={bedrooms}
+                  onChange={(e) => setBedrooms(e.target.value)}
+                >
+                  <option value="">Auto Detect (Plan)</option>
+                  <option value="0">Studio / 0 Beds</option>
+                  <option value="1">1 Bedroom</option>
+                  <option value="2">2 Bedrooms</option>
+                  <option value="3">3 Bedrooms</option>
+                  <option value="4">4 Bedrooms</option>
+                  <option value="5">5+ Bedrooms</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Bathrooms Count</label>
+                <select
+                  className="form-control"
+                  value={bathrooms}
+                  onChange={(e) => setBathrooms(e.target.value)}
+                >
+                  <option value="">Auto Detect (Plan)</option>
+                  <option value="1">1 Bathroom</option>
+                  <option value="1.5">1.5 Bathrooms</option>
+                  <option value="2">2 Bathrooms</option>
+                  <option value="2.5">2.5 Bathrooms</option>
+                  <option value="3">3 Bathrooms</option>
+                  <option value="4+">4+ Bathrooms</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Target Finish Quality</label>
+                <select
+                  className="form-control"
+                  value={qualityStandard}
+                  onChange={(e) => setQualityStandard(e.target.value)}
+                >
+                  <option value="Standard">Standard / Builder Grade</option>
+                  <option value="Custom High-End">Custom High-End</option>
+                  <option value="Luxury">Luxury Grade Spec</option>
+                </select>
+              </div>
             </div>
 
             <div className="form-group">
-              <label>Project Notes</label>
+              <label>Scope Description / Project Notes</label>
               <textarea
                 className="form-control"
-                placeholder="List project requirements, custom finish constraints, or plumbing hookup considerations..."
+                placeholder="Mention specific plan details, room notes, custom structural specs, foundation details, or other scope constraints to make the AI takeoff estimate more accurate..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+                rows={4}
               ></textarea>
             </div>
 
@@ -352,6 +402,29 @@ export default function ProjectForm({ onProjectCreated, onCancel }) {
                       fontSize: '13px'
                     }}>
                       📄 {file.name} ({(file.size / (1024 * 1024)).toFixed(2)} MB)
+                    </div>
+                  )}
+                </div>
+
+                {/* Display specification details selected in Step 1 as feedback to contractor */}
+                <div style={{
+                  backgroundColor: 'var(--primary-light)',
+                  borderLeft: '4px solid var(--primary)',
+                  padding: '12px 16px',
+                  borderRadius: 'var(--radius-md)',
+                  marginBottom: '24px',
+                  fontSize: '13px'
+                }}>
+                  <div style={{ fontWeight: 'bold', color: 'var(--primary-dark)', marginBottom: '6px' }}>Selected Project Scope:</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px', color: 'var(--text-dark)' }}>
+                    <div><strong>Type:</strong> {type}</div>
+                    <div><strong>Bedrooms:</strong> {bedrooms || 'Auto Detect'}</div>
+                    <div><strong>Bathrooms:</strong> {bathrooms || 'Auto Detect'}</div>
+                    <div><strong>Quality:</strong> {qualityStandard}</div>
+                  </div>
+                  {notes && (
+                    <div style={{ marginTop: '8px', borderTop: '1px dashed rgba(249, 115, 22, 0.2)', paddingTop: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                      <strong>Description:</strong> {notes}
                     </div>
                   )}
                 </div>
